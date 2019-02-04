@@ -128,6 +128,37 @@ class KnowledgeBase(object):
         printv("Retracting {!r}", 0, verbose, [fact])
         ####################################################
         # Student code goes here
+
+        if isinstance(fact, Fact) and self.kb_ask(fact):
+            current = self._get_fact(fact)
+            if current.asserted:
+                current.asserted = False
+                self.kb_remove(current)
+
+            # if not asserted, don't do anything
+
+    def kb_remove(self, fact_rule):
+        """Helper function to remove facts/rules from the KB if they're no longer supported
+
+        Args:
+            fact_rule - Fact or Rule to be removed
+
+        Returns:
+            None
+            """
+
+        if len(fact_rule.supported_by) < 2 and not fact_rule.asserted:   #if not supported/asserted, remove from KB
+            for x in fact_rule.supports_facts:
+                x.supported_by.remove(fact_rule)
+                self.kb_remove(x)
+            for x in fact_rule.supports_rules:
+                x.supported_by.remove(fact_rule)
+                self.kb_remove(x)
+
+            if isinstance(fact_rule, Fact):
+                self.facts.remove(fact_rule)
+            else:
+                self.rules.remove(fact_rule)
         
 
 class InferenceEngine(object):
@@ -146,3 +177,30 @@ class InferenceEngine(object):
             [fact.statement, rule.lhs, rule.rhs])
         ####################################################
         # Student code goes here
+        length = len(rule.lhs)
+        new_lhs = []
+
+        bindings = match(fact.statement, rule.lhs[0])
+
+        if bindings:
+            if length == 1:   #infers a new fact
+                new_statement = instantiate(rule.rhs, bindings)
+                new_fact = Fact(new_statement, [fact, rule])
+
+                fact.supports_facts.append(new_fact)
+                rule.supports_facts.append(new_fact)
+                kb.kb_assert(new_fact)
+
+            else:           #infers a new rule
+                #for x in range(length-1):
+                for statement in rule.lhs[1:]:
+                    new_statement = instantiate(statement, bindings)
+                    new_lhs.append(new_statement)
+                new_rhs = instantiate(rule.rhs, bindings)
+                new_rule = Rule([new_lhs, new_rhs], [fact, rule])
+
+                fact.supports_rules.append(new_rule)
+                rule.supports_rules.append(new_rule)
+                kb.kb_assert(new_rule)
+
+

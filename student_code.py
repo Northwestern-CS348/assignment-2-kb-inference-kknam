@@ -148,18 +148,37 @@ class KnowledgeBase(object):
             """
 
         if len(fact_rule.supported_by) < 2 and not fact_rule.asserted:   #if not supported/asserted, remove from KB
-            for x in fact_rule.supports_facts:
-                x.supported_by.remove(fact_rule)
-                self.kb_remove(x)
-            for x in fact_rule.supports_rules:
-                x.supported_by.remove(fact_rule)
+            for x in fact_rule.supports_facts:      #updates supported_by for the facts it supports
+                if isinstance(fact_rule, Fact):     #removes fact and corresponding rule
+                    index = x.supported_by.index(fact_rule)
+                    del x.supported_by[index]
+                    del x.supported_by[index]
+
+                elif isinstance(fact_rule, Rule):   #removes rule and corresponding fact
+                    index = x.supported_by.index(fact_rule)
+                    del x.supported_by[index-1]
+                    del x.supported_by[index-1]
+
+                self.kb_remove(x)       #recursion
+
+            for x in fact_rule.supports_rules:      #same logic, except for the rules it supports
+                if isinstance(fact_rule, Fact):
+                    index = x.supported_by.index(fact_rule)
+                    del x.supported_by[index]
+                    del x.supported_by[index]
+
+                elif isinstance(fact_rule, Rule):
+                    index = x.supported_by.index(fact_rule)
+                    del x.supported_by[index-1]
+                    del x.supported_by[index-1]
+
                 self.kb_remove(x)
 
             if isinstance(fact_rule, Fact):
                 self.facts.remove(fact_rule)
             else:
                 self.rules.remove(fact_rule)
-        
+
 
 class InferenceEngine(object):
     def fc_infer(self, fact, rule, kb):
@@ -171,7 +190,7 @@ class InferenceEngine(object):
             kb (KnowledgeBase) - A KnowledgeBase
 
         Returns:
-            Nothing            
+            Nothing
         """
         printv('Attempting to infer from {!r} and {!r} => {!r}', 1, verbose,
             [fact.statement, rule.lhs, rule.rhs])
@@ -191,16 +210,14 @@ class InferenceEngine(object):
                 rule.supports_facts.append(new_fact)
                 kb.kb_assert(new_fact)
 
-            else:           #infers a new rule
-                #for x in range(length-1):
+            elif length > 1:           #infers a new rule
                 for statement in rule.lhs[1:]:
                     new_statement = instantiate(statement, bindings)
                     new_lhs.append(new_statement)
+
                 new_rhs = instantiate(rule.rhs, bindings)
                 new_rule = Rule([new_lhs, new_rhs], [fact, rule])
 
                 fact.supports_rules.append(new_rule)
                 rule.supports_rules.append(new_rule)
                 kb.kb_assert(new_rule)
-
-
